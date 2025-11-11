@@ -1,0 +1,6 @@
+FROM kong:3.4
+
+LABEL maintainer="msi-api-gateway-developer"
+
+# Kong akan menggunakan konfigurasi deklaratif yang di-mount dari host
+# Tidak ada perubahan tambahan pada image dasar

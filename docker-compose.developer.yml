@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  kong:
+    build:
+      context: .
+      dockerfile: Dockerfile.kong
+    image: msi-api-gateway-developer-kong:3.4
+    container_name: msi-api-gateway-developer-kong
+    networks:
+      - msi-api-gateway-developer-network
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:9588
+      KONG_ADMIN_LISTEN: 0.0.0.0:9589
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:9590
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_GUI_ERROR_LOG: /dev/stderr
+      KONG_PROXY_CONNECT_TIMEOUT: 60000
+      KONG_PROXY_SEND_TIMEOUT: 60000
+      KONG_PROXY_READ_TIMEOUT: 60000
+      KONG_UPSTREAM_CONNECT_TIMEOUT: 60000
+      KONG_UPSTREAM_SEND_TIMEOUT: 60000
+      KONG_UPSTREAM_READ_TIMEOUT: 60000
+      KONG_DNS_RESOLVER: "8.8.8.8:53,8.8.4.4:53,1.1.1.1:53"
+      KONG_DNS_ORDER: "LAST,A,CNAME"
+    volumes:
+      - ./config/kong.yml:/kong/kong.yml:ro
+      - ./config/resolv.conf:/etc/resolv.conf:ro
+    ports:
+      - "9588:9588"
+      - "9589:9589"
+      - "9590:9590"
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+networks:
+  msi-api-gateway-developer-network:
+    driver: bridge
