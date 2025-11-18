@@ -33,7 +33,6 @@ services:
       - ./config/resolv.conf:/etc/resolv.conf:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      - "kong-dev-host:host-gateway"
     ports:
       - "9588:9588"
       - "9589:9589"
