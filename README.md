@@ -91,19 +91,65 @@ Gunakan opsi yang dianggap paling sesuai:
 - **Kontainer tidak "healthy"**: cek log dengan `docker logs msi-api-gateway-developer-kong`.
 - **Konfigurasi deklaratif invalid**: gunakan perintah `kong config parse /kong/kong.yml` (dijalankan di dalam kontainer) untuk mengetahui kesalahan.
 - **Port sudah digunakan**: pastikan tidak ada layanan lain di host yang memakai port 9588-9590, atau ganti mapping port pada `docker-compose.developer.yml`.
-- **Error "An invalid response was received from the upstream server"**:
-  - Pastikan service upstream berjalan di host
-  - Verifikasi `host.docker.internal` dapat diakses dari dalam container:
+- **Error "An invalid response was received from the upstream server"** atau **Status 499 (Client Closed Connection)**:
+  - Pastikan service upstream berjalan di host (test langsung dari host):
     ```bash
-    docker exec msi-api-gateway-developer-kong ping -c 2 host.docker.internal
+    curl http://localhost:9518/api/auth/sso/login
     ```
-  - Jika ping gagal di Ubuntu, cek versi Docker Compose: `docker compose version`
+  - **PENTING**: Pastikan service upstream listen di `0.0.0.0`, bukan hanya `127.0.0.1`:
+    ```bash
+    # Cek apakah service listen di 0.0.0.0 atau 127.0.0.1
+    netstat -tlnp | grep 9518
+    # atau
+    ss -tlnp | grep 9518
+    ```
+    Jika hanya listen di `127.0.0.1`, service tidak bisa diakses dari container Docker. Ubah konfigurasi service untuk listen di `0.0.0.0:9518`.
+  - Verifikasi `host.docker.internal` terdaftar di `/etc/hosts` container:
+    ```bash
+    docker exec msi-api-gateway-developer-kong cat /etc/hosts | grep host.docker.internal
+    ```
+    Seharusnya menampilkan entry untuk `host.docker.internal`
+  - Test koneksi dari container ke host (alternatif jika `/dev/tcp` tidak tersedia):
+    ```bash
+    # Test dengan getent (jika tersedia)
+    docker exec msi-api-gateway-developer-kong getent hosts host.docker.internal
+    
+    # Atau test langsung dengan Kong Admin API untuk trigger request
+    curl -X POST http://localhost:9589/services/sso-service/routes/sso-login-route/plugins \
+      -H "Content-Type: application/json" \
+      -d '{"name":"request-termination"}'
+    # Lalu hapus plugin tersebut dan test request
+    ```
+  - Test koneksi menggunakan Kong Admin API untuk melihat status service:
+    ```bash
+    curl http://localhost:9589/services/sso-service
+    ```
+  - Cek log Kong untuk detail error (cari error terkait upstream):
+    ```bash
+    docker logs msi-api-gateway-developer-kong 2>&1 | grep -i "upstream\|error\|failed" | tail -20
+    ```
+  - Jika `host.docker.internal` tidak terdaftar, pastikan Docker Compose versi 2.1+:
+    ```bash
+    docker compose version
+    ```
   - Jika menggunakan Docker Compose versi lama, ubah `extra_hosts` menjadi:
     ```yaml
     extra_hosts:
       - "host.docker.internal:172.17.0.1"
     ```
     Lalu restart container: `docker compose -f docker-compose.developer.yml restart kong`
+  - **Jika service listen di IPv6 (`:::9518`) tapi Kong tidak bisa connect**:
+    - Solusi 1: Gunakan IP langsung di `config/kong.yml`:
+      ```yaml
+      url: http://172.17.0.1:9518  # Ganti host.docker.internal dengan IP gateway
+      ```
+    - Solusi 2: Pastikan service juga listen di IPv4 (`0.0.0.0:9518`), bukan hanya IPv6
+    - Solusi 3: Test dengan IP gateway Docker bridge:
+      ```bash
+      # Cari IP gateway
+      docker network inspect msi-api-gateway-developer-network | grep Gateway
+      # Gunakan IP tersebut di config/kong.yml
+      ```
 
 ## 6. Pemeliharaan
 
