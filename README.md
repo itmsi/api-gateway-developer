@@ -5,11 +5,29 @@ Dokumen ini menjelaskan cara menyiapkan lingkungan Kong API Gateway berbasis Doc
 ## 1. Persiapan Awal
 
 1. Pastikan Docker Engine dan Docker Compose telah terpasang di server.
+   - **Minimum Docker Compose**: Versi 2.1+ (untuk dukungan `host-gateway`)
+   - Untuk Ubuntu/Linux: Pastikan menggunakan Docker Compose V2 atau lebih baru
 2. Kloning repositori ini atau salin berkas konfigurasi ke server tujuan.
 3. Pastikan port berikut belum dipakai oleh layanan lain:
    - `9588` untuk Kong Proxy
    - `9589` untuk Kong Admin API
    - `9590` untuk Kong Admin GUI
+
+### 1.1 Kompatibilitas Platform
+
+Konfigurasi ini kompatibel dengan:
+- ✅ **macOS** (Docker Desktop)
+- ✅ **Windows** (Docker Desktop)
+- ✅ **Ubuntu/Linux** (Docker Compose V2.1+)
+
+**Catatan Penting untuk Ubuntu/Linux:**
+- Konfigurasi menggunakan `host.docker.internal` dengan `host-gateway` yang memerlukan Docker Compose versi 2.1 atau lebih baru
+- Jika menggunakan Docker Compose versi lama, Anda perlu mengubah `extra_hosts` di `docker-compose.developer.yml`:
+  ```yaml
+  extra_hosts:
+    - "host.docker.internal:172.17.0.1"  # Gunakan IP gateway Docker bridge
+  ```
+- Atau gunakan IP host secara langsung di `config/kong.yml` jika `host.docker.internal` tidak tersedia
 
 ## 2. Struktur Berkas Penting
 
@@ -73,6 +91,19 @@ Gunakan opsi yang dianggap paling sesuai:
 - **Kontainer tidak "healthy"**: cek log dengan `docker logs msi-api-gateway-developer-kong`.
 - **Konfigurasi deklaratif invalid**: gunakan perintah `kong config parse /kong/kong.yml` (dijalankan di dalam kontainer) untuk mengetahui kesalahan.
 - **Port sudah digunakan**: pastikan tidak ada layanan lain di host yang memakai port 9588-9590, atau ganti mapping port pada `docker-compose.developer.yml`.
+- **Error "An invalid response was received from the upstream server"**:
+  - Pastikan service upstream berjalan di host
+  - Verifikasi `host.docker.internal` dapat diakses dari dalam container:
+    ```bash
+    docker exec msi-api-gateway-developer-kong ping -c 2 host.docker.internal
+    ```
+  - Jika ping gagal di Ubuntu, cek versi Docker Compose: `docker compose version`
+  - Jika menggunakan Docker Compose versi lama, ubah `extra_hosts` menjadi:
+    ```yaml
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    ```
+    Lalu restart container: `docker compose -f docker-compose.developer.yml restart kong`
 
 ## 6. Pemeliharaan
 

@@ -31,6 +31,8 @@ services:
     volumes:
       - ./config/kong.yml:/kong/kong.yml:ro
       - ./config/resolv.conf:/etc/resolv.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "9588:9588"
       - "9589:9589"
